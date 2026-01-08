@@ -1,0 +1,721 @@
+import javax.swing.*;
+import javax.swing.border.*;
+import java.awt.*;
+import java.awt.event.*;
+import javax.swing.table.DefaultTableModel;
+import javax.swing.table.DefaultTableCellRenderer;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.LinkedList;
+import java.util.Queue;
+import java.util.ArrayList;
+
+// ==================== TASK CLASS ====================
+class Task {
+    private static int idCounter = 1;
+    private int id;
+    private String title;
+    private String description;
+    private String priority;
+    private LocalDateTime createdAt;
+    private LocalDateTime completedAt;
+    private String status;
+
+    public Task(String title, String description, String priority) {
+        this.id = idCounter++;
+        this.title = title;
+        this.description = description;
+        this.priority = priority;
+        this.createdAt = LocalDateTime.now();
+        this.status = "Pending";
+    }
+
+    public int getId() {
+        return id;
+    }
+
+    public String getTitle() {
+        return title;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public String getPriority() {
+        return priority;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public void setCompleted() {
+        this.status = "Completed";
+        this.completedAt = LocalDateTime.now();
+    }
+
+    public String getCreatedAt() {
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm");
+        return createdAt.format(formatter);
+    }
+
+    public String getCompletedAt() {
+        if (completedAt == null) return "N/A";
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm");
+        return completedAt.format(formatter);
+    }
+
+    @Override
+    public String toString() {
+        return "Task #" + id + ": " + title + " [" + priority + "]";
+    }
+}
+
+// ==================== TASK QUEUE CLASS ====================
+class TaskQueue {
+    private Queue<Task> queue;
+
+    public TaskQueue() {
+        this.queue = new LinkedList<>();
+    }
+
+    public void enqueue(Task task) {
+        queue.offer(task);
+    }
+
+    public Task dequeue() {
+        return queue.poll();
+    }
+
+    public Task peek() {
+        return queue.peek();
+    }
+
+    public boolean isEmpty() {
+        return queue.isEmpty();
+    }
+
+    public int size() {
+        return queue.size();
+    }
+
+    public Queue<Task> getAllTasks() {
+        return new LinkedList<>(queue);
+    }
+
+    public void clear() {
+        queue.clear();
+    }
+}
+
+// ==================== TASK HISTORY CLASS ====================
+class TaskHistory {
+    private ArrayList<Task> completedTasks;
+
+    public TaskHistory() {
+        this.completedTasks = new ArrayList<>();
+    }
+
+    public void addCompletedTask(Task task) {
+        task.setCompleted();
+        completedTasks.add(task);
+    }
+
+    public ArrayList<Task> getCompletedTasks() {
+        return completedTasks;
+    }
+
+    public int getCompletedCount() {
+        return completedTasks.size();
+    }
+
+    public void clearHistory() {
+        completedTasks.clear();
+    }
+
+    public Task getTaskById(int id) {
+        for (Task task : completedTasks) {
+            if (task.getId() == id) {
+                return task;
+            }
+        }
+        return null;
+    }
+}
+
+// ==================== MAIN APPLICATION ====================
+public class TaskSchedulerWithHistory extends JFrame {
+    private TaskQueue taskQueue;
+    private TaskHistory taskHistory;
+    private JTable pendingTable;
+    private JTable historyTable;
+    private DefaultTableModel pendingTableModel;
+    private DefaultTableModel historyTableModel;
+    private JTextField titleField;
+    private JTextArea descriptionArea;
+    private JComboBox<String> priorityCombo;
+    private JLabel queueSizeLabel;
+    private JLabel completedCountLabel;
+    private JLabel nextTaskLabel;
+    private JTabbedPane tabbedPane;
+
+    // Color scheme
+    private static final Color PRIMARY_COLOR = new Color(99, 102, 241);
+    private static final Color SECONDARY_COLOR = new Color(139, 92, 246);
+    private static final Color SUCCESS_COLOR = new Color(34, 197, 94);
+    private static final Color WARNING_COLOR = new Color(251, 146, 60);
+    private static final Color DANGER_COLOR = new Color(239, 68, 68);
+    private static final Color BG_COLOR = new Color(249, 250, 251);
+    private static final Color CARD_BG = Color.WHITE;
+    private static final Color HISTORY_COLOR = new Color(16, 185, 129);
+
+    public TaskSchedulerWithHistory() {
+        taskQueue = new TaskQueue();
+        taskHistory = new TaskHistory();
+        initializeUI();
+    }
+
+    private void initializeUI() {
+        setTitle("Task Scheduler with History - Queue Management System");
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setSize(1300, 750);
+        setLocationRelativeTo(null);
+        getContentPane().setBackground(BG_COLOR);
+
+        setLayout(new BorderLayout(15, 15));
+
+        add(createHeaderPanel(), BorderLayout.NORTH);
+        add(createCenterPanel(), BorderLayout.CENTER);
+        add(createRightPanel(), BorderLayout.EAST);
+
+        setVisible(true);
+    }
+
+    private JPanel createHeaderPanel() {
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.setBackground(PRIMARY_COLOR);
+        panel.setBorder(new EmptyBorder(20, 30, 20, 30));
+
+        JLabel titleLabel = new JLabel("📋 Task Scheduler with History");
+        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 28));
+        titleLabel.setForeground(Color.WHITE);
+
+        JLabel subtitleLabel = new JLabel("Queue-based Task Management + Completed Tasks History");
+        subtitleLabel.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        subtitleLabel.setForeground(new Color(224, 231, 255));
+
+        JPanel textPanel = new JPanel(new GridLayout(2, 1, 0, 5));
+        textPanel.setOpaque(false);
+        textPanel.add(titleLabel);
+        textPanel.add(subtitleLabel);
+
+        JPanel statsPanel = new JPanel(new GridLayout(2, 1, 0, 5));
+        statsPanel.setOpaque(false);
+
+        queueSizeLabel = new JLabel("Tasks in Queue: 0");
+        queueSizeLabel.setFont(new Font("Segoe UI", Font.BOLD, 16));
+        queueSizeLabel.setForeground(Color.WHITE);
+
+        completedCountLabel = new JLabel("✅ Completed Tasks: 0");
+        completedCountLabel.setFont(new Font("Segoe UI", Font.BOLD, 16));
+        completedCountLabel.setForeground(new Color(167, 243, 208));
+
+        statsPanel.add(queueSizeLabel);
+        statsPanel.add(completedCountLabel);
+
+        panel.add(textPanel, BorderLayout.WEST);
+        panel.add(statsPanel, BorderLayout.EAST);
+
+        return panel;
+    }
+
+    private JPanel createCenterPanel() {
+        JPanel panel = new JPanel(new BorderLayout(10, 10));
+        panel.setBackground(BG_COLOR);
+        panel.setBorder(new EmptyBorder(15, 15, 15, 15));
+
+        tabbedPane = new JTabbedPane();
+        tabbedPane.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        tabbedPane.setBackground(CARD_BG);
+
+        JPanel pendingPanel = createPendingTasksPanel();
+        tabbedPane.addTab("📝 Pending Tasks (" + taskQueue.size() + ")", pendingPanel);
+
+        JPanel historyPanel = createHistoryPanel();
+        tabbedPane.addTab("✅ Completed Tasks (" + taskHistory.getCompletedCount() + ")", historyPanel);
+
+        panel.add(tabbedPane, BorderLayout.CENTER);
+
+        return panel;
+    }
+
+    private JPanel createPendingTasksPanel() {
+        JPanel panel = new JPanel(new BorderLayout(10, 10));
+        panel.setBackground(CARD_BG);
+
+        String[] columns = {"Task ID", "Title", "Description", "Priority", "Created At"};
+        pendingTableModel = new DefaultTableModel(columns, 0) {
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                return false;
+            }
+        };
+
+        pendingTable = createStyledTable(pendingTableModel);
+        JScrollPane scrollPane = new JScrollPane(pendingTable);
+        scrollPane.setBorder(BorderFactory.createLineBorder(new Color(229, 231, 235), 1));
+
+        // Next task panel
+        JPanel nextTaskPanel = new JPanel(new BorderLayout());
+        nextTaskPanel.setBackground(CARD_BG);
+        nextTaskPanel.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(229, 231, 235), 1),
+                new EmptyBorder(15, 15, 15, 15)
+        ));
+
+        JLabel nextLabel = new JLabel("⏭️ Next Task to Process:");
+        nextLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        nextLabel.setForeground(new Color(55, 65, 81));
+
+        nextTaskLabel = new JLabel("No tasks in queue");
+        nextTaskLabel.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        nextTaskLabel.setForeground(new Color(107, 114, 128));
+
+        nextTaskPanel.add(nextLabel, BorderLayout.WEST);
+        nextTaskPanel.add(nextTaskLabel, BorderLayout.CENTER);
+
+        panel.add(nextTaskPanel, BorderLayout.NORTH);
+        panel.add(scrollPane, BorderLayout.CENTER);
+
+        return panel;
+    }
+
+    private JPanel createHistoryPanel() {
+        JPanel panel = new JPanel(new BorderLayout(10, 10));
+        panel.setBackground(CARD_BG);
+
+        String[] columns = {"Task ID", "Title", "Description", "Priority", "Created At", "Completed At"};
+        historyTableModel = new DefaultTableModel(columns, 0) {
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                return false;
+            }
+        };
+
+        historyTable = createStyledTable(historyTableModel);
+
+        historyTable.setSelectionBackground(new Color(209, 250, 229));
+
+        JScrollPane scrollPane = new JScrollPane(historyTable);
+        scrollPane.setBorder(BorderFactory.createLineBorder(new Color(229, 231, 235), 1));
+        JPanel infoPanel = new JPanel(new BorderLayout());
+        infoPanel.setBackground(new Color(236, 253, 245));
+        infoPanel.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(HISTORY_COLOR, 2),
+                new EmptyBorder(15, 15, 15, 15)
+        ));
+
+        JLabel infoLabel = new JLabel("📊 Completed Tasks History - All processed tasks are stored here for review");
+        infoLabel.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        infoLabel.setForeground(new Color(5, 150, 105));
+
+        JButton clearHistoryBtn = new JButton("🗑️ Clear History");
+        clearHistoryBtn.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        clearHistoryBtn.setForeground(Color.WHITE);
+        clearHistoryBtn.setBackground(DANGER_COLOR);
+        clearHistoryBtn.setFocusPainted(false);
+        clearHistoryBtn.setBorderPainted(false);
+        clearHistoryBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        clearHistoryBtn.addActionListener(e -> clearHistory());
+
+        infoPanel.add(infoLabel, BorderLayout.WEST);
+        infoPanel.add(clearHistoryBtn, BorderLayout.EAST);
+
+        panel.add(infoPanel, BorderLayout.NORTH);
+        panel.add(scrollPane, BorderLayout.CENTER);
+
+        return panel;
+    }
+
+    private JTable createStyledTable(DefaultTableModel model) {
+        JTable table = new JTable(model);
+        table.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        table.setRowHeight(35);
+        table.setSelectionBackground(new Color(219, 234, 254));
+        table.setSelectionForeground(Color.BLACK);
+        table.setGridColor(new Color(229, 231, 235));
+        table.setShowGrid(true);
+
+        table.getTableHeader().setFont(new Font("Segoe UI", Font.BOLD, 13));
+        table.getTableHeader().setBackground(new Color(243, 244, 246));
+        table.getTableHeader().setForeground(new Color(55, 65, 81));
+        table.getTableHeader().setBorder(BorderFactory.createMatteBorder(0, 0, 2, 0, PRIMARY_COLOR));
+
+        DefaultTableCellRenderer centerRenderer = new DefaultTableCellRenderer();
+        centerRenderer.setHorizontalAlignment(JLabel.CENTER);
+        table.getColumnModel().getColumn(0).setCellRenderer(centerRenderer);
+        table.getColumnModel().getColumn(3).setCellRenderer(centerRenderer);
+
+        return table;
+    }
+
+    private JPanel createRightPanel() {
+        JPanel panel = new JPanel();
+        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+        panel.setBackground(BG_COLOR);
+        panel.setBorder(new EmptyBorder(15, 0, 15, 15));
+        panel.setPreferredSize(new Dimension(350, 0));
+
+        panel.add(createAddTaskPanel());
+        panel.add(Box.createRigidArea(new Dimension(0, 15)));
+        panel.add(createOperationsPanel());
+
+        return panel;
+    }
+
+    private JPanel createAddTaskPanel() {
+        JPanel panel = new JPanel();
+        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+        panel.setBackground(CARD_BG);
+        panel.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(229, 231, 235), 1),
+                new EmptyBorder(20, 20, 20, 20)
+        ));
+
+        JLabel titleLabel = new JLabel("➕ Add New Task");
+        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 16));
+        titleLabel.setForeground(new Color(55, 65, 81));
+        titleLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        panel.add(titleLabel);
+        panel.add(Box.createRigidArea(new Dimension(0, 15)));
+
+        JLabel taskTitleLabel = new JLabel("Task Title:");
+        taskTitleLabel.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        taskTitleLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        panel.add(taskTitleLabel);
+        panel.add(Box.createRigidArea(new Dimension(0, 5)));
+
+        titleField = new JTextField();
+        titleField.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        titleField.setMaximumSize(new Dimension(Integer.MAX_VALUE, 35));
+        titleField.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(209, 213, 219), 1),
+                new EmptyBorder(5, 10, 5, 10)
+        ));
+        titleField.setAlignmentX(Component.LEFT_ALIGNMENT);
+        panel.add(titleField);
+        panel.add(Box.createRigidArea(new Dimension(0, 15)));
+
+        JLabel descLabel = new JLabel("Description:");
+        descLabel.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        descLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        panel.add(descLabel);
+        panel.add(Box.createRigidArea(new Dimension(0, 5)));
+
+        descriptionArea = new JTextArea(4, 20);
+        descriptionArea.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        descriptionArea.setLineWrap(true);
+        descriptionArea.setWrapStyleWord(true);
+        descriptionArea.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(209, 213, 219), 1),
+                new EmptyBorder(5, 10, 5, 10)
+        ));
+        JScrollPane descScroll = new JScrollPane(descriptionArea);
+        descScroll.setMaximumSize(new Dimension(Integer.MAX_VALUE, 100));
+        descScroll.setAlignmentX(Component.LEFT_ALIGNMENT);
+        panel.add(descScroll);
+        panel.add(Box.createRigidArea(new Dimension(0, 15)));
+
+        JLabel priorityLabel = new JLabel("Priority:");
+        priorityLabel.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        priorityLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        panel.add(priorityLabel);
+        panel.add(Box.createRigidArea(new Dimension(0, 5)));
+
+        String[] priorities = {"Low", "Medium", "High", "Urgent"};
+        priorityCombo = new JComboBox<>(priorities);
+        priorityCombo.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        priorityCombo.setMaximumSize(new Dimension(Integer.MAX_VALUE, 35));
+        priorityCombo.setAlignmentX(Component.LEFT_ALIGNMENT);
+        panel.add(priorityCombo);
+        panel.add(Box.createRigidArea(new Dimension(0, 20)));
+
+        JButton addButton = createStyledButton("Add Task to Queue", SUCCESS_COLOR);
+        addButton.setAlignmentX(Component.LEFT_ALIGNMENT);
+        addButton.addActionListener(e -> addTask());
+        panel.add(addButton);
+
+        return panel;
+    }
+
+    private JPanel createOperationsPanel() {
+        JPanel panel = new JPanel();
+        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+        panel.setBackground(CARD_BG);
+        panel.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(229, 231, 235), 1),
+                new EmptyBorder(20, 20, 20, 20)
+        ));
+
+        JLabel titleLabel = new JLabel("⚙️ Queue Operations");
+        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 16));
+        titleLabel.setForeground(new Color(55, 65, 81));
+        titleLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        panel.add(titleLabel);
+        panel.add(Box.createRigidArea(new Dimension(0, 15)));
+
+        JButton dequeueButton = createStyledButton("✓ Complete Next Task", HISTORY_COLOR);
+        dequeueButton.setAlignmentX(Component.LEFT_ALIGNMENT);
+        dequeueButton.addActionListener(e -> dequeueTask());
+        panel.add(dequeueButton);
+        panel.add(Box.createRigidArea(new Dimension(0, 10)));
+
+        JButton peekButton = createStyledButton("👁️ Peek (View Next Task)", SECONDARY_COLOR);
+        peekButton.setAlignmentX(Component.LEFT_ALIGNMENT);
+        peekButton.addActionListener(e -> peekTask());
+        panel.add(peekButton);
+        panel.add(Box.createRigidArea(new Dimension(0, 10)));
+
+        JButton clearButton = createStyledButton("🗑️ Clear All Pending", DANGER_COLOR);
+        clearButton.setAlignmentX(Component.LEFT_ALIGNMENT);
+        clearButton.addActionListener(e -> clearAllTasks());
+        panel.add(clearButton);
+        panel.add(Box.createRigidArea(new Dimension(0, 10)));
+
+        JButton viewHistoryButton = createStyledButton("📊 View History", WARNING_COLOR);
+        viewHistoryButton.setAlignmentX(Component.LEFT_ALIGNMENT);
+        viewHistoryButton.addActionListener(e -> tabbedPane.setSelectedIndex(1));
+        panel.add(viewHistoryButton);
+        panel.add(Box.createRigidArea(new Dimension(0, 20)));
+
+        // Info Panel
+        JPanel infoPanel = new JPanel();
+        infoPanel.setLayout(new BoxLayout(infoPanel, BoxLayout.Y_AXIS));
+        infoPanel.setBackground(new Color(239, 246, 255));
+        infoPanel.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(PRIMARY_COLOR, 1),
+                new EmptyBorder(15, 15, 15, 15)
+        ));
+        infoPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        JLabel infoTitle = new JLabel("ℹ️ Queue Info (FIFO)");
+        infoTitle.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        infoTitle.setForeground(PRIMARY_COLOR);
+        infoTitle.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        JTextArea infoText = new JTextArea(
+                "Queue follows FIFO principle:\n\n" +
+                        "• First task added is first processed\n" +
+                        "• Enqueue: Add task to end\n" +
+                        "• Dequeue: Remove & complete task\n" +
+                        "• Completed tasks saved in history\n" +
+                        "• Review completed tasks anytime"
+        );
+        infoText.setFont(new Font("Segoe UI", Font.PLAIN, 11));
+        infoText.setForeground(new Color(55, 65, 81));
+        infoText.setBackground(new Color(239, 246, 255));
+        infoText.setEditable(false);
+        infoText.setLineWrap(true);
+        infoText.setWrapStyleWord(true);
+        infoText.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        infoPanel.add(infoTitle);
+        infoPanel.add(Box.createRigidArea(new Dimension(0, 10)));
+        infoPanel.add(infoText);
+
+        panel.add(infoPanel);
+
+        return panel;
+    }
+
+    private JButton createStyledButton(String text, Color bgColor) {
+        JButton button = new JButton(text);
+        button.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        button.setForeground(Color.WHITE);
+        button.setBackground(bgColor);
+        button.setFocusPainted(false);
+        button.setBorderPainted(false);
+        button.setMaximumSize(new Dimension(Integer.MAX_VALUE, 40));
+        button.setCursor(new Cursor(Cursor.HAND_CURSOR));
+
+        button.addMouseListener(new MouseAdapter() {
+            public void mouseEntered(MouseEvent e) {
+                button.setBackground(bgColor.darker());
+            }
+            public void mouseExited(MouseEvent e) {
+                button.setBackground(bgColor);
+            }
+        });
+
+        return button;
+    }
+
+    private void addTask() {
+        String title = titleField.getText().trim();
+        String description = descriptionArea.getText().trim();
+        String priority = (String) priorityCombo.getSelectedItem();
+
+        if (title.isEmpty()) {
+            showMessage("Please enter a task title!", "Error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        if (description.isEmpty()) {
+            description = "No description provided";
+        }
+
+        Task task = new Task(title, description, priority);
+        taskQueue.enqueue(task);
+
+        Object[] row = {
+                task.getId(),
+                task.getTitle(),
+                task.getDescription(),
+                task.getPriority(),
+                task.getCreatedAt()
+        };
+        pendingTableModel.addRow(row);
+
+        titleField.setText("");
+        descriptionArea.setText("");
+        priorityCombo.setSelectedIndex(0);
+
+        updateAllInfo();
+        showMessage("Task added to queue successfully!", "Success", JOptionPane.INFORMATION_MESSAGE);
+    }
+
+    private void dequeueTask() {
+        if (taskQueue.isEmpty()) {
+            showMessage("Queue is empty! No tasks to process.", "Info", JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
+
+        Task task = taskQueue.dequeue();
+
+        // Add to history
+        taskHistory.addCompletedTask(task);
+
+        // Add to history table
+        Object[] historyRow = {
+                task.getId(),
+                task.getTitle(),
+                task.getDescription(),
+                task.getPriority(),
+                task.getCreatedAt(),
+                task.getCompletedAt()
+        };
+        historyTableModel.addRow(historyRow);
+
+        // Remove from pending table
+        if (pendingTableModel.getRowCount() > 0) {
+            pendingTableModel.removeRow(0);
+        }
+
+        updateAllInfo();
+        showMessage("✅ Task completed: " + task.getTitle() + "\n\nTask moved to history!",
+                "Task Completed", JOptionPane.INFORMATION_MESSAGE);
+    }
+
+    private void peekTask() {
+        if (taskQueue.isEmpty()) {
+            showMessage("Queue is empty! No tasks to view.", "Info", JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
+
+        Task task = taskQueue.peek();
+        String message = String.format(
+                "Next Task Details:\n\n" +
+                        "ID: %d\n" +
+                        "Title: %s\n" +
+                        "Description: %s\n" +
+                        "Priority: %s\n" +
+                        "Created: %s\n" +
+                        "Status: %s",
+                task.getId(),
+                task.getTitle(),
+                task.getDescription(),
+                task.getPriority(),
+                task.getCreatedAt(),
+                task.getStatus()
+        );
+        showMessage(message, "Next Task (Peek)", JOptionPane.INFORMATION_MESSAGE);
+    }
+
+    private void clearAllTasks() {
+        if (taskQueue.isEmpty()) {
+            showMessage("Queue is already empty!", "Info", JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
+
+        int confirm = JOptionPane.showConfirmDialog(
+                this,
+                "Are you sure you want to clear all pending tasks?\n(This will NOT affect completed tasks history)",
+                "Confirm Clear",
+                JOptionPane.YES_NO_OPTION,
+                JOptionPane.WARNING_MESSAGE
+        );
+
+        if (confirm == JOptionPane.YES_OPTION) {
+            taskQueue.clear();
+            pendingTableModel.setRowCount(0);
+            updateAllInfo();
+            showMessage("All pending tasks cleared!", "Success", JOptionPane.INFORMATION_MESSAGE);
+        }
+    }
+
+    private void clearHistory() {
+        if (taskHistory.getCompletedCount() == 0) {
+            showMessage("History is already empty!", "Info", JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
+
+        int confirm = JOptionPane.showConfirmDialog(
+                this,
+                "Are you sure you want to clear the entire task history?\nThis action cannot be undone!",
+                "Confirm Clear History",
+                JOptionPane.YES_NO_OPTION,
+                JOptionPane.WARNING_MESSAGE
+        );
+
+        if (confirm == JOptionPane.YES_OPTION) {
+            taskHistory.clearHistory();
+            historyTableModel.setRowCount(0);
+            updateAllInfo();
+            showMessage("Task history cleared!", "Success", JOptionPane.INFORMATION_MESSAGE);
+        }
+    }
+
+    private void updateAllInfo() {
+        int pendingSize = taskQueue.size();
+        int completedSize = taskHistory.getCompletedCount();
+
+        queueSizeLabel.setText("Tasks in Queue: " + pendingSize);
+        completedCountLabel.setText("✅ Completed Tasks: " + completedSize);
+
+        // Update tab titles
+        tabbedPane.setTitleAt(0, "📝 Pending Tasks (" + pendingSize + ")");
+        tabbedPane.setTitleAt(1, "✅ Completed Tasks (" + completedSize + ")");
+
+        if (taskQueue.isEmpty()) {
+            nextTaskLabel.setText("No tasks in queue");
+        } else {
+            Task next = taskQueue.peek();
+            nextTaskLabel.setText(next.toString());
+        }
+    }
+
+    private void showMessage(String message, String title, int type) {
+        JOptionPane.showMessageDialog(this, message, title, type);
+    }
+
+    public static void main(String[] args) {
+        try {
+            UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        SwingUtilities.invokeLater(() -> new TaskSchedulerWithHistory());
+    }
+}
